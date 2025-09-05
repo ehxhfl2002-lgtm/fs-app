@@ -72,8 +72,8 @@ def get_financial_data(corp_code):
                 'error': 'API 키가 설정되지 않았습니다. .env 파일에 DART_API_KEY를 설정해주세요.'
             })
         
-        # 재무데이터 조회
-        result = api.get_financial_summary(corp_code, year, report_type)
+        # 재무데이터 조회 (실패 시 자동으로 다른 연도/보고서 시도)
+        result = api.get_financial_summary_with_fallback(corp_code, year, report_type)
         
         if result['success']:
             summary = result['summary']
@@ -149,7 +149,7 @@ def analyze_financial(corp_code):
                 'error': 'DART API 키가 설정되지 않았습니다.'
             })
         
-        financial_result = dart_api.get_financial_summary(corp_code, year, report_type)
+        financial_result = dart_api.get_financial_summary_with_fallback(corp_code, year, report_type)
         
         if not financial_result['success']:
             return jsonify({

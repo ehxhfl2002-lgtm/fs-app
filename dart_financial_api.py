@@ -53,9 +53,31 @@ class DartFinancialAPI:
             
             # 에러 체크
             if data.get('status') != '000':
+                error_code = data.get('status')
+                error_message = data.get('message', '알 수 없는 오류')
+                
+                # 013 오류에 대한 상세 설명
+                if error_code == '013':
+                    detailed_error = f"조회된 데이터가 없습니다. 가능한 원인:\n"
+                    detailed_error += f"• {bsns_year}년도 재무제표가 공시되지 않았을 수 있습니다\n"
+                    detailed_error += f"• 회사코드 {corp_code}가 올바르지 않을 수 있습니다\n"
+                    detailed_error += f"• 보고서 유형({reprt_code})에 해당하는 데이터가 없을 수 있습니다\n"
+                    detailed_error += f"• 다른 연도나 보고서 유형을 시도해보세요"
+                    
+                    return {
+                        'success': False,
+                        'error': f"API 오류 {error_code}: {detailed_error}",
+                        'error_code': error_code,
+                        'suggestions': {
+                            'try_other_years': [str(int(bsns_year)-1), str(int(bsns_year)-2)],
+                            'try_other_reports': ['11012', '11013', '11014'] if reprt_code == '11011' else ['11011']
+                        }
+                    }
+                
                 return {
                     'success': False,
-                    'error': f"API 오류 {data.get('status')}: {data.get('message', '알 수 없는 오류')}"
+                    'error': f"API 오류 {error_code}: {error_message}",
+                    'error_code': error_code
                 }
             
             return {
@@ -74,6 +96,46 @@ class DartFinancialAPI:
                 'error': f"처리 오류: {str(e)}"
             }
     
+    def get_financial_summary_with_fallback(self, corp_code: str, bsns_year: str, reprt_code: str = "11011") -> Dict:
+        """
+        재무정보 조회 (실패 시 자동으로 다른 연도/보고서 유형 시도)
+        """
+        # 1차 시도: 요청된 연도와 보고서 유형
+        result = self.get_financial_statements(corp_code, bsns_year, reprt_code)
+        if result['success']:
+            return self.get_financial_summary(corp_code, bsns_year, reprt_code)
+        
+        # 013 오류인 경우 자동으로 다른 옵션들 시도
+        if result.get('error_code') == '013':
+            # 2차 시도: 이전 연도들
+            for year in [str(int(bsns_year)-1), str(int(bsns_year)-2)]:
+                try:
+                    fallback_result = self.get_financial_statements(corp_code, year, reprt_code)
+                    if fallback_result['success']:
+                        print(f"✅ {year}년도 데이터로 대체 조회 성공")
+                        return self.get_financial_summary(corp_code, year, reprt_code)
+                except:
+                    continue
+            
+            # 3차 시도: 다른 보고서 유형 (원래 연도)
+            other_reports = ['11012', '11013', '11014'] if reprt_code == '11011' else ['11011']
+            for report in other_reports:
+                try:
+                    fallback_result = self.get_financial_statements(corp_code, bsns_year, report)
+                    if fallback_result['success']:
+                        print(f"✅ {report} 보고서로 대체 조회 성공")
+                        return self.get_financial_summary(corp_code, bsns_year, report)
+                except:
+                    continue
+        
+        # 모든 시도 실패 시 원래 오류 반환
+        return {
+            'success': False,
+            'error': result['error'],
+            'error_code': result.get('error_code'),
+            'suggestions': result.get('suggestions', {})
+        }
+
     def get_financial_summary(self, corp_code: str, bsns_year: str, reprt_code: str = "11011") -> Dict:
         """
         재무제표 주요 지표 요약 정보 조회
@@ -208,7 +270,8 @@ class DartFinancialAPI:
         errors = []
         
         for year in range(start_year, end_year + 1):
-            result = self.get_financial_summary(corp_code, str(year), reprt_code)
+            # fallback 메커니즘 사용하여 더 안정적인 데이터 조회
+            result = self.get_financial_summary_with_fallback(corp_code, str(year), reprt_code)
             
             if result['success']:
                 summary = result['summary']

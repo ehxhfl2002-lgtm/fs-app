@@ -671,7 +671,28 @@ function showLoading(show) {
 function showError(message) {
     const errorDiv = document.getElementById('error-message');
     const errorText = document.getElementById('error-text');
-    errorText.textContent = message;
+    
+    // 013 오류에 대한 특별 처리
+    if (message.includes('API 오류 013') || message.includes('조회된 데이터가 없습니다')) {
+        const friendlyMessage = `
+            <strong>📋 재무데이터를 찾을 수 없습니다</strong><br><br>
+            <div class="small">
+                <strong>가능한 원인:</strong><br>
+                • 선택한 연도의 재무제표가 아직 공시되지 않았을 수 있습니다<br>
+                • 해당 보고서 유형의 데이터가 없을 수 있습니다<br>
+                • 상장 폐지되었거나 휴업 중인 회사일 수 있습니다<br><br>
+                <strong>💡 해결 방법:</strong><br>
+                • 다른 연도를 선택해보세요 (예: 2022, 2021년)<br>
+                • 다른 보고서 유형을 시도해보세요<br>
+                • 회사명을 다시 확인해보세요<br>
+                <small class="text-muted">시스템에서 자동으로 다른 연도의 데이터를 찾아보겠습니다.</small>
+            </div>
+        `;
+        errorText.innerHTML = friendlyMessage;
+    } else {
+        errorText.textContent = message;
+    }
+    
     errorDiv.classList.remove('d-none');
 }
 
