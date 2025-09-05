@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}서버 오류 - 재무제표 시각화{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 text-center">
+            <div class="card border-0 shadow-lg">
+                <div class="card-body p-5">
+                    <div class="mb-4">
+                        <i class="fas fa-exclamation-triangle fa-5x text-warning"></i>
+                    </div>
+                    <h1 class="display-4 fw-bold text-danger mb-3">500</h1>
+                    <h3 class="mb-3">서버 내부 오류</h3>
+                    <p class="text-muted mb-4">
+                        서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
+                    </p>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-home me-2"></i>홈으로 돌아가기
+                        </a>
+                        <button class="btn btn-outline-secondary btn-lg" onclick="location.reload()">
+                            <i class="fas fa-sync-alt me-2"></i>페이지 새로고침
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

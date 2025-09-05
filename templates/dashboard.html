@@ -1,0 +1,850 @@
+{% extends "base.html" %}
+
+{% block title %}{{ company.corp_name }} - 재무제표 시각화{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Company Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-2">
+                                <i class="fas fa-building me-2 text-primary"></i>
+                                {{ company.corp_name }}
+                            </h2>
+                            {% if company.corp_eng_name %}
+                            <p class="text-muted mb-2">{{ company.corp_eng_name }}</p>
+                            {% endif %}
+                            <div class="row">
+                                <div class="col-auto">
+                                    <small class="badge bg-primary">
+                                        <i class="fas fa-code me-1"></i>
+                                        회사코드: {{ company.corp_code }}
+                                    </small>
+                                </div>
+                                {% if company.stock_code %}
+                                <div class="col-auto">
+                                    <small class="badge bg-success">
+                                        <i class="fas fa-chart-line me-1"></i>
+                                        종목코드: {{ company.stock_code }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-outline-secondary" onclick="history.back()">
+                                <i class="fas fa-arrow-left me-1"></i>
+                                검색으로 돌아가기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <label for="year-select" class="form-label">사업연도</label>
+                            <select class="form-select" id="year-select">
+                                <option value="2023">2023년</option>
+                                <option value="2022">2022년</option>
+                                <option value="2021">2021년</option>
+                                <option value="2020">2020년</option>
+                                <option value="2019">2019년</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="report-select" class="form-label">보고서 구분</label>
+                            <select class="form-select" id="report-select">
+                                <option value="11011">사업보고서</option>
+                                <option value="11012">반기보고서</option>
+                                <option value="11013">1분기보고서</option>
+                                <option value="11014">3분기보고서</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button class="btn btn-primary" id="load-data-btn">
+                                    <i class="fas fa-sync-alt me-1"></i>
+                                    데이터 조회
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button class="btn btn-info" id="load-trend-btn">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    다년도 추이
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-success" id="analyze-ai-btn">
+                                    <i class="fas fa-brain me-1"></i>
+                                    AI 재무분석
+                                </button>
+                                <button class="btn btn-warning" id="analyze-trends-btn">
+                                    <i class="fas fa-robot me-1"></i>
+                                    AI 추이분석
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="text-center d-none mb-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">데이터 로딩 중...</span>
+        </div>
+        <p class="mt-2 text-muted">재무데이터를 가져오는 중입니다...</p>
+    </div>
+
+    <!-- Financial Summary -->
+    <div id="financial-summary" class="row mb-4 d-none">
+        <!-- Summary cards will be inserted here -->
+    </div>
+
+    <!-- AI Analysis Results -->
+    <div id="ai-analysis-section" class="row mb-4 d-none">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0">
+                        <i class="fas fa-brain me-2"></i>
+                        <span id="ai-analysis-title">AI 재무분석 결과</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="ai-analysis-content">
+                        <!-- AI 분석 결과가 여기에 표시됩니다 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div id="charts-section" class="d-none">
+        <!-- Single Year Charts -->
+        <div id="single-year-charts" class="row mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-balance-scale me-2"></i>
+                            재무상태표
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="balance-sheet-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            손익계산서
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="income-statement-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi Year Trend Charts -->
+        <div id="trend-charts" class="row d-none">
+            <div class="col-12 mb-3">
+                <h3>
+                    <i class="fas fa-chart-line me-2"></i>
+                    다년도 재무 추이
+                </h3>
+            </div>
+            
+            <div class="col-md-6 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">매출액 추이</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="revenue-trend-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-warning text-white">
+                        <h6 class="mb-0">이익 추이</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="profit-trend-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-secondary text-white">
+                        <h6 class="mb-0">재무상태 추이</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="balance-trend-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Message -->
+    <div id="error-message" class="alert alert-danger d-none" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <span id="error-text"></span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const corpCode = '{{ company.corp_code }}';
+let currentCharts = {}; // 차트 인스턴스 저장
+
+document.addEventListener('DOMContentLoaded', function() {
+    const loadDataBtn = document.getElementById('load-data-btn');
+    const loadTrendBtn = document.getElementById('load-trend-btn');
+    const analyzeAiBtn = document.getElementById('analyze-ai-btn');
+    const analyzeTrendsBtn = document.getElementById('analyze-trends-btn');
+    const yearSelect = document.getElementById('year-select');
+    const reportSelect = document.getElementById('report-select');
+    
+    // 이벤트 리스너
+    loadDataBtn.addEventListener('click', loadFinancialData);
+    loadTrendBtn.addEventListener('click', loadTrendData);
+    analyzeAiBtn.addEventListener('click', loadAiAnalysis);
+    analyzeTrendsBtn.addEventListener('click', loadTrendAnalysis);
+    
+    // 페이지 로드 시 기본 데이터 조회
+    loadFinancialData();
+});
+
+// 단일 연도 재무데이터 조회
+function loadFinancialData() {
+    const year = document.getElementById('year-select').value;
+    const reportType = document.getElementById('report-select').value;
+    
+    showLoading(true);
+    hideError();
+    
+    fetch(`/api/financial-data/${corpCode}?year=${year}&report_type=${reportType}`)
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            
+            if (data.success) {
+                displayFinancialSummary(data.summary);
+                displaySingleYearCharts(data.chart_data);
+                document.getElementById('charts-section').classList.remove('d-none');
+                document.getElementById('single-year-charts').classList.remove('d-none');
+                document.getElementById('trend-charts').classList.add('d-none');
+            } else {
+                showError(data.error);
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showError('네트워크 오류가 발생했습니다.');
+            console.error('Error:', error);
+        });
+}
+
+// 다년도 추이 데이터 조회
+function loadTrendData() {
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 4;
+    const endYear = currentYear - 1;
+    const reportType = document.getElementById('report-select').value;
+    
+    showLoading(true);
+    hideError();
+    
+    fetch(`/api/multi-year-data/${corpCode}?start_year=${startYear}&end_year=${endYear}&report_type=${reportType}`)
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            
+            if (data.success) {
+                displayTrendCharts(data.chart_data);
+                document.getElementById('charts-section').classList.remove('d-none');
+                document.getElementById('single-year-charts').classList.add('d-none');
+                document.getElementById('trend-charts').classList.remove('d-none');
+                
+                if (data.errors && data.errors.length > 0) {
+                    console.warn('일부 연도 데이터 조회 실패:', data.errors);
+                }
+            } else {
+                showError(data.error);
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showError('네트워크 오류가 발생했습니다.');
+            console.error('Error:', error);
+        });
+}
+
+// AI 재무분석 조회
+function loadAiAnalysis() {
+    const year = document.getElementById('year-select').value;
+    const reportType = document.getElementById('report-select').value;
+    
+    showLoading(true);
+    hideError();
+    hideAiAnalysis();
+    
+    fetch(`/api/analyze-financial/${corpCode}?year=${year}&report_type=${reportType}`)
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            
+            if (data.success) {
+                displayAiAnalysis(data.analysis, `${data.company_name} ${data.year}년 AI 재무분석`);
+            } else {
+                showError(data.error);
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showError('AI 분석 중 네트워크 오류가 발생했습니다.');
+            console.error('Error:', error);
+        });
+}
+
+// AI 추이분석 조회
+function loadTrendAnalysis() {
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 4;
+    const endYear = currentYear - 1;
+    const reportType = document.getElementById('report-select').value;
+    
+    showLoading(true);
+    hideError();
+    hideAiAnalysis();
+    
+    fetch(`/api/analyze-trends/${corpCode}?start_year=${startYear}&end_year=${endYear}&report_type=${reportType}`)
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            
+            if (data.success) {
+                displayAiAnalysis(data.trend_analysis, `${data.company_name} ${data.years} AI 추이분석`);
+            } else {
+                showError(data.error);
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showError('AI 추이분석 중 네트워크 오류가 발생했습니다.');
+            console.error('Error:', error);
+        });
+}
+
+// 재무 요약 정보 표시
+function displayFinancialSummary(summary) {
+    const container = document.getElementById('financial-summary');
+    const bs = summary.balance_sheet || {};
+    const is = summary.income_statement || {};
+    
+    const summaryHtml = `
+        <div class="col-md-3">
+            <div class="card border-0 bg-primary text-white">
+                <div class="card-body text-center">
+                    <h6>자산총계</h6>
+                    <h4>${formatAmount(bs.total_assets?.current || 0)}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-success text-white">
+                <div class="card-body text-center">
+                    <h6>매출액</h6>
+                    <h4>${formatAmount(is.revenue?.current || 0)}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-info text-white">
+                <div class="card-body text-center">
+                    <h6>영업이익</h6>
+                    <h4>${formatAmount(is.operating_profit?.current || 0)}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-warning text-white">
+                <div class="card-body text-center">
+                    <h6>당기순이익</h6>
+                    <h4>${formatAmount(is.net_profit?.current || 0)}</h4>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = summaryHtml;
+    container.classList.remove('d-none');
+}
+
+// 단일 연도 차트 표시
+function displaySingleYearCharts(chartData) {
+    // 기존 차트 제거
+    destroyChart('balanceSheetChart');
+    destroyChart('incomeStatementChart');
+    
+    // 재무상태표 차트
+    if (chartData.balance_sheet.labels.length > 0) {
+        const bsCtx = document.getElementById('balance-sheet-chart').getContext('2d');
+        currentCharts.balanceSheetChart = new Chart(bsCtx, {
+            type: 'bar',
+            data: {
+                labels: chartData.balance_sheet.labels,
+                datasets: [{
+                    label: '당기',
+                    data: chartData.balance_sheet.current_data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }, {
+                    label: '전기',
+                    data: chartData.balance_sheet.previous_data,
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatAmount(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatAmount(context.parsed.y);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 손익계산서 차트
+    if (chartData.income_statement.labels.length > 0) {
+        const isCtx = document.getElementById('income-statement-chart').getContext('2d');
+        currentCharts.incomeStatementChart = new Chart(isCtx, {
+            type: 'bar',
+            data: {
+                labels: chartData.income_statement.labels,
+                datasets: [{
+                    label: '당기',
+                    data: chartData.income_statement.current_data,
+                    backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }, {
+                    label: '전기',
+                    data: chartData.income_statement.previous_data,
+                    backgroundColor: 'rgba(255, 206, 86, 0.8)',
+                    borderColor: 'rgba(255, 206, 86, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatAmount(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatAmount(context.parsed.y);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// 다년도 추이 차트 표시
+function displayTrendCharts(chartData) {
+    // 기존 차트 제거
+    destroyChart('revenueTrendChart');
+    destroyChart('profitTrendChart');
+    destroyChart('balanceTrendChart');
+    
+    // 매출액 추이 차트
+    const revenueCtx = document.getElementById('revenue-trend-chart').getContext('2d');
+    currentCharts.revenueTrendChart = new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: chartData.revenue_trend.labels,
+            datasets: [{
+                label: '매출액',
+                data: chartData.revenue_trend.data,
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return formatAmount(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '매출액: ' + formatAmount(context.parsed.y);
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 이익 추이 차트
+    const profitCtx = document.getElementById('profit-trend-chart').getContext('2d');
+    currentCharts.profitTrendChart = new Chart(profitCtx, {
+        type: 'line',
+        data: {
+            labels: chartData.profit_trend.labels,
+            datasets: [{
+                label: '영업이익',
+                data: chartData.profit_trend.operating_profit,
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 2,
+                fill: false
+            }, {
+                label: '당기순이익',
+                data: chartData.profit_trend.net_profit,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 2,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) {
+                            return formatAmount(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatAmount(context.parsed.y);
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 재무상태 추이 차트
+    const balanceCtx = document.getElementById('balance-trend-chart').getContext('2d');
+    currentCharts.balanceTrendChart = new Chart(balanceCtx, {
+        type: 'line',
+        data: {
+            labels: chartData.balance_trend.labels,
+            datasets: [{
+                label: '자산총계',
+                data: chartData.balance_trend.assets,
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2,
+                fill: false
+            }, {
+                label: '부채총계',
+                data: chartData.balance_trend.liabilities,
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 2,
+                fill: false
+            }, {
+                label: '자본총계',
+                data: chartData.balance_trend.equity,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 2,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return formatAmount(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatAmount(context.parsed.y);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 유틸리티 함수들
+function showLoading(show) {
+    const loading = document.getElementById('loading');
+    if (show) {
+        loading.classList.remove('d-none');
+    } else {
+        loading.classList.add('d-none');
+    }
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    errorText.textContent = message;
+    errorDiv.classList.remove('d-none');
+}
+
+function hideError() {
+    document.getElementById('error-message').classList.add('d-none');
+}
+
+function hideAiAnalysis() {
+    document.getElementById('ai-analysis-section').classList.add('d-none');
+}
+
+function displayAiAnalysis(analysis, title) {
+    const section = document.getElementById('ai-analysis-section');
+    const titleElement = document.getElementById('ai-analysis-title');
+    const contentElement = document.getElementById('ai-analysis-content');
+    
+    titleElement.textContent = title;
+    
+    let analysisHtml = '';
+    
+    if (analysis.full_text) {
+        // 전체 텍스트를 마크다운 스타일로 변환
+        analysisHtml = formatAnalysisText(analysis.full_text);
+    } else {
+        // 구조화된 데이터가 있는 경우
+        if (analysis.financial_health) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-primary"><i class="fas fa-shield-alt me-2"></i>재무 건전성</h6>
+                    <p class="ms-3">${analysis.financial_health.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.profitability) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-success"><i class="fas fa-dollar-sign me-2"></i>수익성 분석</h6>
+                    <p class="ms-3">${analysis.profitability.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.growth) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-info"><i class="fas fa-chart-line me-2"></i>성장성 분석</h6>
+                    <p class="ms-3">${analysis.growth.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.warnings) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>주의사항</h6>
+                    <p class="ms-3">${analysis.warnings.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.summary) {
+            analysisHtml += `
+                <div class="alert alert-primary">
+                    <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>한줄 요약</h6>
+                    <p class="mb-0">${analysis.summary.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        // 추이 분석 섹션들
+        if (analysis.revenue_trend) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-primary"><i class="fas fa-chart-bar me-2"></i>매출 성장 추이</h6>
+                    <p class="ms-3">${analysis.revenue_trend.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.profitability_change) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-success"><i class="fas fa-coins me-2"></i>수익성 변화</h6>
+                    <p class="ms-3">${analysis.profitability_change.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.asset_growth) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-info"><i class="fas fa-building me-2"></i>자산 규모 변화</h6>
+                    <p class="ms-3">${analysis.asset_growth.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.growth_rate) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-warning"><i class="fas fa-percentage me-2"></i>성장률 분석</h6>
+                    <p class="ms-3">${analysis.growth_rate.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.future_outlook) {
+            analysisHtml += `
+                <div class="mb-4">
+                    <h6 class="text-secondary"><i class="fas fa-crystal-ball me-2"></i>미래 전망</h6>
+                    <p class="ms-3">${analysis.future_outlook.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+        
+        if (analysis.overall_evaluation) {
+            analysisHtml += `
+                <div class="alert alert-info">
+                    <h6 class="alert-heading"><i class="fas fa-star me-2"></i>종합 평가</h6>
+                    <p class="mb-0">${analysis.overall_evaluation.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+        }
+    }
+    
+    if (!analysisHtml) {
+        analysisHtml = '<p class="text-muted">분석 결과를 표시할 수 없습니다.</p>';
+    }
+    
+    contentElement.innerHTML = analysisHtml;
+    section.classList.remove('d-none');
+    
+    // 스크롤을 분석 결과로 이동
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function formatAnalysisText(text) {
+    // 기본적인 마크다운 스타일 변환
+    let formatted = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **bold**
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *italic*
+        .replace(/\n\n/g, '</p><p>')                       // 단락 구분
+        .replace(/\n/g, '<br>')                            // 줄바꿈
+        .replace(/📊|💰|📈|⚠️|🎯|📋|🔮|💡|🏗️/g, '<span class="fs-5">$&</span>'); // 이모지 크기
+    
+    // 섹션 헤더 스타일링
+    formatted = formatted.replace(/(<strong>.*?)(📊|💰|📈|⚠️|🎯|📋|🔮|💡|🏗️)(.*?<\/strong>)/g, 
+        '<h6 class="text-primary mt-4 mb-3">$1$2$3</h6>');
+    
+    return `<div class="analysis-content">${formatted}</div>`;
+}
+
+function destroyChart(chartName) {
+    if (currentCharts[chartName]) {
+        currentCharts[chartName].destroy();
+        delete currentCharts[chartName];
+    }
+}
+
+function formatAmount(amount) {
+    if (amount === 0) return "0";
+    
+    const absAmount = Math.abs(amount);
+    if (absAmount >= 1_000_000_000_000) {
+        return (amount / 1_000_000_000_000).toFixed(1) + "조";
+    } else if (absAmount >= 100_000_000) {
+        return (amount / 100_000_000).toFixed(1) + "억";
+    } else if (absAmount >= 10_000) {
+        return (amount / 10_000).toFixed(1) + "만";
+    } else {
+        return amount.toLocaleString();
+    }
+}
+</script>
+{% endblock %}
