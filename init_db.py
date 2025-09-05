@@ -13,15 +13,21 @@ def download_corpcode_data():
     배포 환경에서 Open DART 회사코드 데이터 다운로드
     """
     try:
-        from dotenv import load_dotenv
         import requests
         
-        load_dotenv()
+        # 환경변수 로딩 (배포 환경 고려)
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass  # 배포 환경에서는 dotenv가 없을 수 있음
         
         api_key = os.getenv('DART_API_KEY')
         if not api_key or api_key == 'your_dart_api_key_here':
-            print("❌ DART_API_KEY가 설정되지 않았습니다.")
+            print(f"❌ DART_API_KEY가 설정되지 않았습니다. 현재 값: {api_key}")
             return False
+        
+        print(f"✅ DART_API_KEY 확인됨: {api_key[:8]}...")  # 앞 8자만 표시
         
         print("🔄 Open DART에서 회사코드 데이터를 다운로드 중...")
         
@@ -32,22 +38,35 @@ def download_corpcode_data():
         url = "https://opendart.fss.or.kr/api/corpCode.xml"
         params = {'crtfc_key': api_key}
         
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=30)
+        
+        print(f"🔍 API 응답 상태: {response.status_code}")
         
         if response.status_code == 200:
+            # 응답 내용 확인
+            if len(response.content) < 1000:
+                print(f"⚠️ 응답 내용이 너무 짧습니다: {response.content[:200]}...")
+                return False
+            
             # ZIP 파일 저장
             zip_path = './data/CORPCODE.zip'
             with open(zip_path, 'wb') as f:
                 f.write(response.content)
             
-            # ZIP 파일 압축 해제
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall('./data')
+            print(f"📁 ZIP 파일 크기: {len(response.content):,} bytes")
             
-            print("✅ 회사코드 데이터 다운로드 완료")
-            return True
+            # ZIP 파일 압축 해제
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall('./data')
+                print("✅ 회사코드 데이터 다운로드 완료")
+                return True
+            except zipfile.BadZipFile:
+                print(f"❌ ZIP 파일이 손상되었습니다. 내용: {response.content[:200]}...")
+                return False
         else:
             print(f"❌ 다운로드 실패: HTTP {response.status_code}")
+            print(f"📄 응답 내용: {response.text[:500]}...")
             return False
     
     except Exception as e:
